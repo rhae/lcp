@@ -8,6 +8,11 @@
 
 static U32 millis( void );
 
+lcp_ctx_t rcvr;
+lcp_ctx_t sndr;
+lcp_config_t sndr_cfg;
+lcp_config_t rcvr_cfg;
+
 int main(int argc, char** argv)
 {
 
@@ -16,21 +21,26 @@ int main(int argc, char** argv)
     return -1;
   }
 
-  chan_t* chan = chan_create(argv[1]);
-  lcp_config_t cfg;
+  chan_t* chan1 = chan_create(argv[1]);
+  chan_t* chan2 = chan_create(argv[1]);
   
-  chan->init(0);
+  sndr_cfg.send = chan2->send;
+  sndr_cfg.recv = chan1->recv;
+  sndr_cfg.millis = millis;
+  sndr_cfg.priv = chan1;
 
-  cfg.send = chan->send;
-  cfg.recv = chan->recv;
-  cfg.millis = millis;
-  cfg.priv = NULL;
+  rcvr_cfg.send = chan1->send;
+  rcvr_cfg.recv = chan2->recv;
+  rcvr_cfg.millis = millis;
+  rcvr_cfg.priv = chan2;
 
-  lcp_init(&cfg);
+  lcp_init(&rcvr, &rcvr_cfg);
+  lcp_init(&sndr, &sndr_cfg);
 
   for (int i = 0; i < 10; i++)
   {
-    lcp_update();
+    lcp_update(&sndr);
+    lcp_update(&rcvr);
   }
 
   return 0;

@@ -1,47 +1,56 @@
 
 
+#include "chan_mem.h"
 #include "chan.h"
 
 #include "../include/lcp.h"
-#include <string.h>
+#include <stdlib.h>  /* calloc */
 
-#define FRAME_FLAG 0x7d
+#define _MTU (LCP_MTU +32)
 
-enum {RX = 0, TX = 1};
-
-U8 s_Mem[2 * LCP_MTU];
-int s_Idx[2] = { 0, 0 };
-
-void chan_mem_init(void * priv)
+typedef struct _mem_ctx
 {
-  (void)priv;
-  memset(s_Mem, 0, sizeof(s_Mem));
-  s_Idx[RX] = 0;
-  s_Idx[TX] = 0;
+  U8 mem[2* _MTU];
+  int idx;
+} mem_ctx_t;
+
+
+void chan_mem_init(void * me)
+{
+  chan_t* ch = (chan_t*)me;
+  ch->priv = calloc(sizeof(mem_ctx_t), 1);
 }
 
 U16 chan_mem_send(U8 b, void *priv)
 {
-  (void)priv;
+  chan_t *me = (chan_t*)priv;
+  mem_ctx_t* ctx = (mem_ctx_t*)me->priv;
 
-  s_Mem[s_Idx[TX]] = b;
-  s_Idx[TX]++;
+  if (ctx->idx == _MTU)
+  {
+    return 0;
+  }
+
+  ctx->mem[ctx->idx] = b;
+  ctx->idx++;
 
   return 1;
 }
 
 U16 chan_mem_recv(U8 *b, void *priv)
 {
-  (void)priv;
+  chan_t *me = (chan_t*)priv;
+  mem_ctx_t* ctx = (mem_ctx_t*)me->priv;
 
-  *b = s_Mem[s_Idx[RX]];
-  if (s_Idx[RX] == s_Idx[TX])
+  if (ctx->idx == 0)
   {
-    s_Idx[RX] = 0;
-    s_Idx[TX] = 0;
     return 0;
   }
-  s_Idx[RX] ++;
+
+  ctx->idx--;
+  *b = ctx->mem[ctx->idx];
+
 
   return 1;
 }
+

@@ -16,9 +16,14 @@ chan_t* chan_create(S8 const* chan_uri)
   if (ret == 0)
   {
     chan = (chan_t*)calloc(1, sizeof(chan_t));
-    chan->init = chan_mem_init;
-    chan->send = chan_mem_send;
-    chan->recv = chan_mem_recv;
+    if (chan)
+    {
+      chan->init = chan_mem_init;
+      chan->send = chan_mem_send;
+      chan->recv = chan_mem_recv;
+
+      chan->init(chan);
+    }
   }
 
   return chan;

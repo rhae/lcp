@@ -39,14 +39,21 @@ typedef struct lcp_state
   U32 last_probe;
   U32 probe_cnt;
 
-  U8  tx_state;
+  U8       tx_state;
   queue_t* qsend;
   queue_t* qrecv;
 } lcp_state_t;
 
-void lcp_init( lcp_config_t const * );
-void lcp_update();
+typedef struct lcp_ctx
+{
+  lcp_config_t const* cfg;
+  lcp_state_t   state;
+  U8*           buf;
+} lcp_ctx_t;
 
-int lcp_write(U8 const*, U16);
-int lcp_read(U8*, U16);
+void lcp_init( lcp_ctx_t *me, lcp_config_t const * );
+void lcp_update(lcp_ctx_t *me);
+
+int lcp_write(lcp_ctx_t *me, U8 const*, U16);
+int lcp_read(lcp_ctx_t *me, U8*, U16);
 
