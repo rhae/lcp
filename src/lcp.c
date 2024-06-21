@@ -5,6 +5,7 @@
 #include "queue.h"
 
 #include <string.h>   /* memcp */
+#include <stdlib.h>   /* calloc */
 
 #define PROBE_TIMEOUT 1000
 #define PROBE_INTERVAL 2000
@@ -23,90 +24,115 @@
 
 enum {SEND = 1, WAIT_ACK, RECV };
 
-static int send_probe( int mirror );
-static int recv_probe();
-static int handle_rxtx();
-static int send(U8 const* pkt, U16 size);
-static int recv(U8* data, U16 size);
+static int send_probe(lcp_ctx_t*, int mirror );
+static int recv_probe(lcp_ctx_t*);
+static int handle_rxtx(lcp_ctx_t*);
+static int send(lcp_ctx_t*, U8 const* pkt, U16 size);
+static int recv(lcp_ctx_t*, U8* data, U16 size);
 
-static lcp_config_t s_cfg = { 0 };
-static lcp_state_t s_state = { 0 };
-static U8 s_buf[2 * _MTU];
+#define LOG_ERROR( ...)  do { if( me->cfg->log) me->cfg->log( me->cfg, LOGLEVEL_ERROR, __VA_ARGS__ );} while(0)
+#define LOG_WARN( ...)  do { if( me->cfg->log) me->cfg->log( me->cfg, LOGLEVEL_WARN, __VA_ARGS__ );} while(0)
+#define LOG_INFO( ...)  do { if( me->cfg->log) me->cfg->log( me->cfg, LOGLEVEL_INFO, __VA_ARGS__ );} while(0)
+#define LOG_TEST( ...)  do { if( me->cfg->log) me->cfg->log( me->cfg, LOGLEVEL_TEST, __VA_ARGS__ );} while(0)
+#define LOG_VERBOSE( ...)  do { if( me->cfg->log) me->cfg->log( me->cfg, LOGLEVEL_VERBOSE, __VA_ARGS__ );} while(0)
+#define LOG_DEBUG( ...)  do { if( me->cfg->log) me->cfg->log( me->cfg, LOGLEVEL_DEBUG, __VA_ARGS__ );} while(0)
+#define LOG_TRACE( ...)  do { if( me->cfg->log) me->cfg->log( me->cfg, LOGLEVEL_TRACE, __VA_ARGS__ );} while(0)
 
-void lcp_init( lcp_config_t const *cfg )
+void lcp_init( lcp_ctx_t *me, lcp_config_t const *cfg )
 {
-  memcpy( &s_cfg, cfg, sizeof(lcp_config_t));
-  s_state.state = LCP_NOLINK;
-  memset(s_buf, 0, sizeof(s_buf));
+  me->cfg = cfg;
+  memset(&me->state, 0, sizeof(lcp_state_t));
+  me->state.state = LCP_NOLINK;
+  me->buf = calloc(_MTU * 2, 1);
+
+  LOG_TRACE("init done. ");
 }
 
-void lcp_update()
+void lcp_update( lcp_ctx_t *me )
 {
   int ret;
-  U32 now = s_cfg.millis();
+  U32 now = me->cfg->millis();
   S32 delta;
+  S32 state = me->state.state;
 
-  switch (s_state.state)
+  LOG_TRACE("> lcp_update");
+
+  switch (me->state.state)
   {
     case LCP_NOLINK:
     case LCP_ERROR:
     case LCP_TIMEOUT:
-      ret = send_probe( 0 );
+      ret = send_probe(me, 0 );
       if (ret == 0)
       {
-        s_state.last_probe = now;
-        s_state.state = LCP_PROBING;
+        me->state.last_probe = now;
+        me->state.state = LCP_PROBING_1;
       }
       break;
 
-    case LCP_PROBING:
-      ret = recv_probe();
-      if (ret)
+    case LCP_PROBING_1:
+    case LCP_PROBING_2:
+      ret = recv_probe(me);
+      if (ret == 0)
       {
-        delta = now - s_state.last_probe;
-        if (delta > PROBE_TIMEOUT)
+        if (me->state.state == LCP_PROBING_1)
         {
-          s_state.probe_cnt++;
+          send_probe(me, 1 );
+          me->state.state = LCP_PROBING_2;
         }
-        if (s_state.probe_cnt > MAX_PROBE_FAILS)
+        else
         {
-          s_state.state = LCP_ERROR;
+          LOG_INFO("  Link ESTABLISHED");
+          me->state.state = LCP_LINK;
         }
       }
       else
       {
-        send_probe( 1 );
-        s_state.state = LCP_LINK;
+        delta = now - me->state.last_probe;
+        if (delta > PROBE_TIMEOUT)
+        {
+          LOG_WARN("  probe timeout.");
+          me->state.probe_cnt++;
+        }
+        if (me->state.probe_cnt > MAX_PROBE_FAILS)
+        {
+          LOG_ERROR("  link establish failed. checked %d times.", me->state.probe_cnt);
+          me->state.state = LCP_ERROR;
+        }
       }
       break;
 
     case LCP_LINK:
 
-      ret = handle_rxtx();
+      ret = handle_rxtx(me);
       if (!ret)
       {
-        delta = now - s_state.last_probe;
+        delta = now - me->state.last_probe;
         if (delta > PROBE_INTERVAL)
         {
-          ret = send_probe(0);
+          ret = send_probe(me,0);
           if (ret == 0)
           {
-            s_state.last_probe = now;
-            s_state.state = LCP_PROBING;
+            me->state.last_probe = now;
+            me->state.state = LCP_PROBING_1;
           }
         }
       }
       break;
-
   }
+  if (state != me->state.state)
+  {
+    LOG_DEBUG("  state change: %d -> %d", state, me->state.state);
+  }
+  LOG_TRACE("< lcp_update");
 }
 
-int lcp_write(U8 const* buf, U16 size)
+int lcp_write(lcp_ctx_t *me, U8 const* buf, U16 size)
 {
   return 0;
 }
 
-int lcp_read(U8 * buf, U16 size)
+int lcp_read(lcp_ctx_t *me, U8 * buf, U16 size)
 {
   return 0;
 }
@@ -143,7 +169,7 @@ int fill_probe(U8 *pkt, int mirror)
     _FILL( 'O' );
   }
 
-  crc = crc_calc(pkt, p - pkt);
+  crc = crc_calc(pkt, (U16)(p - pkt));
 
   _FILL(LO_BYTE(crc));
   _FILL(HI_BYTE(crc));
@@ -165,22 +191,27 @@ int chk_crc(U8* pkt, U16 size)
   return -1;
 }
 
-static int send_probe(int mirror)
+static int send_probe(lcp_ctx_t *me, int mirror)
 {
-  int len = fill_probe(s_buf, mirror );
-  int n = send(s_buf, (U16)len);
+  LOG_TRACE("> send_probe");
+  int len = fill_probe(me->buf, mirror );
+  int n = send(me, me->buf, (U16)len);
+  LOG_TRACE("< send_probe");
   return n > 0 ? 0 : n;
 }
 
-static int recv_probe()
+static int recv_probe(lcp_ctx_t *me)
 {
-  U8 *p = s_buf + _MTU;
-  int len = recv(p, _MTU);
+  U8 *p = me->buf + _MTU;
+  LOG_TRACE("> recv_probe");
+  int len = recv(me, p, _MTU);
   int chk = 0;
   if (len > 0)
   {
     chk = chk_crc(p, (U16)len);
   }
+  LOG_DEBUG("  CRC %s", chk == 0 ? "OK" : "WRONG" );
+  LOG_TRACE("< recv_probe");
   return chk;
 }
 
@@ -204,29 +235,35 @@ static int fill_data(U8* pkt, U8 const* data, U16 size)
   _FILL( LO_BYTE(crc));
   _FILL( HI_BYTE(crc));
 
+
   return pkt - p;
 }
 
-static int send(U8 const* pkt, U16 size)
+static int send(lcp_ctx_t *me, U8 const* pkt, U16 size)
 {
-  s_cfg.send(FRAME_FLAG, s_cfg.priv );
+  LOG_TRACE("> send", size);
+  LOG_DEBUG("  send %d bytes: %x %x %x", size, pkt[0], pkt[1], pkt[2]);
+
+  me->cfg->send(FRAME_FLAG, me->cfg->priv );
   for (U16 i = 0; i < size; i++)
   {
     U8 b = pkt[i];
 
     if (b == FRAME_FLAG || b == FRAME_ESC )
     {
-      s_cfg.send(FRAME_ESC, s_cfg.priv);
+      me->cfg->send(FRAME_ESC, me->cfg->priv);
       b ^= 0x20;
     }
-    s_cfg.send(b, s_cfg.priv);
+    me->cfg->send(b, me->cfg->priv);
 
   }
-  s_cfg.send(FRAME_FLAG, s_cfg.priv );
+  me->cfg->send(FRAME_FLAG, me->cfg->priv );
+
+  LOG_TRACE("< send", size);
   return size + 2;
 }
 
-static int recv(U8 *data, U16 size)
+static int recv(lcp_ctx_t *me, U8 *data, U16 size)
 {
   enum { START, ESC, DATA, END };
   U8 state = START;
@@ -234,10 +271,11 @@ static int recv(U8 *data, U16 size)
   U8 b;
   int i;
   int esc_cnt = 2;  // Number of escape bytes + 2 Frame delimiter
+  LOG_TRACE("> recv");
 
   for (i = 0; i < (int)size && state != END; i++)
   {
-    U16 n = s_cfg.recv(&b, s_cfg.priv);
+    U16 n = me->cfg->recv(&b, me->cfg->priv);
     if (n == 1)
     {
       switch (state)
@@ -279,22 +317,32 @@ static int recv(U8 *data, U16 size)
       }
     }
   }
-  return i > 0 ? i - esc_cnt : i;
+
+  int ret = i > 0 ? i - esc_cnt : i;
+  LOG_DEBUG("  state = %d, ret = %d", state, ret);
+  if (ret > 0)
+  {
+    LOG_DEBUG("  recv bytes %x %x %x", data[0], data[1], data[2]);
+  }
+  LOG_TRACE("< recv");
+  return ret;
 }
 
-static int handle_rxtx()
+static int handle_rxtx(lcp_ctx_t *me)
 {
   U16 cnt;
-  switch (s_state.tx_state)
+  int state = me->state.tx_state;
+
+  LOG_TRACE("> handle_rxtx");
+  switch (me->state.tx_state)
   {
     case SEND:
-      cnt = queue_count(s_state.qsend);
+      cnt = queue_count(me->state.qsend);
       if ( cnt > 0 )
       {
-        U8* buf = &s_buf[0];
         U8* data;
-        queue_pop(s_state.qsend, &data);
-        fill_data(s_buf, data, LCP_MTU);
+        queue_pop(me->state.qsend, &data);
+        fill_data(me->buf, data, LCP_MTU);
       }
       break;
 
@@ -304,7 +352,12 @@ static int handle_rxtx()
     case RECV:
       break;
   }
+  if (state != me->state.tx_state)
+  {
+    LOG_DEBUG("tx_state: %d -> %d", state, me->state.tx_state );
+  }
 
+  LOG_TRACE("< handle_rxtx");
   return 0;
 }
 
