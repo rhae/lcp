@@ -7,6 +7,16 @@
 #endif
 
 #include "queue.h"
+#include <stdarg.h>
+
+#define LOGLEVEL_ERROR 70
+#define LOGLEVEL_WARN 60
+#define LOGLEVEL_INFO 50
+#define LOGLEVEL_TEST 40
+#define LOGLEVEL_VERBOSE 30
+#define LOGLEVEL_DEBUG 20
+#define LOGLEVEL_TRACE 10
+
 
 #define LCP_MTU 256
 
@@ -17,7 +27,8 @@
 enum
 {
   LCP_NOLINK = 1,
-  LCP_PROBING,
+  LCP_PROBING_1,
+  LCP_PROBING_2,
   LCP_LINK,
 
   LCP_ERROR,
@@ -30,6 +41,8 @@ typedef struct lcp_config
   U16 (*send)(U8, void*);
   U16 (*recv)(U8 *, void*);
   U32 (*millis)(void);
+
+  void (*log)(void *priv, int, S8 const*, ...);
 } lcp_config_t;
 
 typedef struct lcp_state

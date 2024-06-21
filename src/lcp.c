@@ -30,12 +30,22 @@ static int handle_rxtx(lcp_ctx_t*);
 static int send(lcp_ctx_t*, U8 const* pkt, U16 size);
 static int recv(lcp_ctx_t*, U8* data, U16 size);
 
+#define LOG_ERROR( ...)  do { if( me->cfg->log) me->cfg->log( me->cfg, LOGLEVEL_ERROR, __VA_ARGS__ );} while(0)
+#define LOG_WARN( ...)  do { if( me->cfg->log) me->cfg->log( me->cfg, LOGLEVEL_WARN, __VA_ARGS__ );} while(0)
+#define LOG_INFO( ...)  do { if( me->cfg->log) me->cfg->log( me->cfg, LOGLEVEL_INFO, __VA_ARGS__ );} while(0)
+#define LOG_TEST( ...)  do { if( me->cfg->log) me->cfg->log( me->cfg, LOGLEVEL_TEST, __VA_ARGS__ );} while(0)
+#define LOG_VERBOSE( ...)  do { if( me->cfg->log) me->cfg->log( me->cfg, LOGLEVEL_VERBOSE, __VA_ARGS__ );} while(0)
+#define LOG_DEBUG( ...)  do { if( me->cfg->log) me->cfg->log( me->cfg, LOGLEVEL_DEBUG, __VA_ARGS__ );} while(0)
+#define LOG_TRACE( ...)  do { if( me->cfg->log) me->cfg->log( me->cfg, LOGLEVEL_TRACE, __VA_ARGS__ );} while(0)
+
 void lcp_init( lcp_ctx_t *me, lcp_config_t const *cfg )
 {
   me->cfg = cfg;
   memset(&me->state, 0, sizeof(lcp_state_t));
   me->state.state = LCP_NOLINK;
   me->buf = calloc(_MTU * 2, 1);
+
+  LOG_TRACE("init done. ");
 }
 
 void lcp_update( lcp_ctx_t *me )
@@ -43,6 +53,9 @@ void lcp_update( lcp_ctx_t *me )
   int ret;
   U32 now = me->cfg->millis();
   S32 delta;
+  S32 state = me->state.state;
+
+  LOG_TRACE("> lcp_update");
 
   switch (me->state.state)
   {
@@ -53,26 +66,37 @@ void lcp_update( lcp_ctx_t *me )
       if (ret == 0)
       {
         me->state.last_probe = now;
-        me->state.state = LCP_PROBING;
+        me->state.state = LCP_PROBING_1;
       }
       break;
 
-    case LCP_PROBING:
+    case LCP_PROBING_1:
+    case LCP_PROBING_2:
       ret = recv_probe(me);
       if (ret == 0)
       {
-        send_probe(me, 1 );
-        me->state.state = LCP_LINK;
+        if (me->state.state == LCP_PROBING_1)
+        {
+          send_probe(me, 1 );
+          me->state.state = LCP_PROBING_2;
+        }
+        else
+        {
+          LOG_INFO("  Link ESTABLISHED");
+          me->state.state = LCP_LINK;
+        }
       }
       else
       {
         delta = now - me->state.last_probe;
         if (delta > PROBE_TIMEOUT)
         {
+          LOG_WARN("  probe timeout.");
           me->state.probe_cnt++;
         }
         if (me->state.probe_cnt > MAX_PROBE_FAILS)
         {
+          LOG_ERROR("  link establish failed. checked %d times.", me->state.probe_cnt);
           me->state.state = LCP_ERROR;
         }
       }
@@ -90,13 +114,17 @@ void lcp_update( lcp_ctx_t *me )
           if (ret == 0)
           {
             me->state.last_probe = now;
-            me->state.state = LCP_PROBING;
+            me->state.state = LCP_PROBING_1;
           }
         }
       }
       break;
-
   }
+  if (state != me->state.state)
+  {
+    LOG_DEBUG("  state change: %d -> %d", state, me->state.state);
+  }
+  LOG_TRACE("< lcp_update");
 }
 
 int lcp_write(lcp_ctx_t *me, U8 const* buf, U16 size)
@@ -165,20 +193,25 @@ int chk_crc(U8* pkt, U16 size)
 
 static int send_probe(lcp_ctx_t *me, int mirror)
 {
+  LOG_TRACE("> send_probe");
   int len = fill_probe(me->buf, mirror );
   int n = send(me, me->buf, (U16)len);
+  LOG_TRACE("< send_probe");
   return n > 0 ? 0 : n;
 }
 
 static int recv_probe(lcp_ctx_t *me)
 {
   U8 *p = me->buf + _MTU;
+  LOG_TRACE("> recv_probe");
   int len = recv(me, p, _MTU);
   int chk = 0;
   if (len > 0)
   {
     chk = chk_crc(p, (U16)len);
   }
+  LOG_DEBUG("  CRC %s", chk == 0 ? "OK" : "WRONG" );
+  LOG_TRACE("< recv_probe");
   return chk;
 }
 
@@ -202,11 +235,15 @@ static int fill_data(U8* pkt, U8 const* data, U16 size)
   _FILL( LO_BYTE(crc));
   _FILL( HI_BYTE(crc));
 
+
   return pkt - p;
 }
 
 static int send(lcp_ctx_t *me, U8 const* pkt, U16 size)
 {
+  LOG_TRACE("> send", size);
+  LOG_DEBUG("  send %d bytes: %x %x %x", size, pkt[0], pkt[1], pkt[2]);
+
   me->cfg->send(FRAME_FLAG, me->cfg->priv );
   for (U16 i = 0; i < size; i++)
   {
@@ -221,6 +258,8 @@ static int send(lcp_ctx_t *me, U8 const* pkt, U16 size)
 
   }
   me->cfg->send(FRAME_FLAG, me->cfg->priv );
+
+  LOG_TRACE("< send", size);
   return size + 2;
 }
 
@@ -232,6 +271,7 @@ static int recv(lcp_ctx_t *me, U8 *data, U16 size)
   U8 b;
   int i;
   int esc_cnt = 2;  // Number of escape bytes + 2 Frame delimiter
+  LOG_TRACE("> recv");
 
   for (i = 0; i < (int)size && state != END; i++)
   {
@@ -277,12 +317,23 @@ static int recv(lcp_ctx_t *me, U8 *data, U16 size)
       }
     }
   }
-  return i > 0 ? i - esc_cnt : i;
+
+  int ret = i > 0 ? i - esc_cnt : i;
+  LOG_DEBUG("  state = %d, ret = %d", state, ret);
+  if (ret > 0)
+  {
+    LOG_DEBUG("  recv bytes %x %x %x", data[0], data[1], data[2]);
+  }
+  LOG_TRACE("< recv");
+  return ret;
 }
 
 static int handle_rxtx(lcp_ctx_t *me)
 {
   U16 cnt;
+  int state = me->state.tx_state;
+
+  LOG_TRACE("> handle_rxtx");
   switch (me->state.tx_state)
   {
     case SEND:
@@ -301,7 +352,12 @@ static int handle_rxtx(lcp_ctx_t *me)
     case RECV:
       break;
   }
+  if (state != me->state.tx_state)
+  {
+    LOG_DEBUG("tx_state: %d -> %d", state, me->state.tx_state );
+  }
 
+  LOG_TRACE("< handle_rxtx");
   return 0;
 }
 
