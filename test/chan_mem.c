@@ -29,7 +29,7 @@ U16 chan_mem_send(U8 b, void *priv)
 
   if (ctx->wi == _MTU)
   {
-    return 0;
+    ctx->wi = 0;
   }
 
   ctx->mem[ctx->wi] = b;
@@ -38,14 +38,24 @@ U16 chan_mem_send(U8 b, void *priv)
   return 1;
 }
 
+static int _is_empty(mem_ctx_t* ctx)
+{
+  return (ctx->ri == ctx->wi);
+}
+
 U16 chan_mem_recv(U8 *b, void *priv)
 {
   chan_t *me = (chan_t*)priv;
   mem_ctx_t* ctx = (mem_ctx_t*)me->priv;
 
-  if (ctx->ri == _MTU)
+  if (_is_empty(ctx))
   {
     return 0;
+  }
+
+  if (ctx->ri == _MTU)
+  {
+    ctx->ri = 0;
   }
 
   *b = ctx->mem[ctx->ri];
