@@ -150,7 +150,7 @@ static U32 millis()
   return ElapsedMicroseconds.u.LowPart;
 }
 
-static int s_LogLevel = LOGLEVEL_DEBUG;
+static int s_LogLevel = LOGLEVEL_VERBOSE;
 
 static void log(S8 const* buf)
 {

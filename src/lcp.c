@@ -96,7 +96,7 @@ void lcp_update( lcp_ctx_t *me )
         }
         if (me->state.probe_cnt > MAX_PROBE_FAILS)
         {
-          LOG_ERROR("  link establish failed. checked %d times.", me->state.probe_cnt);
+          LOG_ERROR("  Link establish failed. checked %d times.", me->state.probe_cnt);
           me->state.state = LCP_ERROR;
         }
       }
@@ -110,6 +110,7 @@ void lcp_update( lcp_ctx_t *me )
         delta = now - me->state.last_probe;
         if (delta > PROBE_INTERVAL)
         {
+          LOG_VERBOSE("  No traffic. Check link.");
           ret = send_probe(me,0);
           if (ret == 0)
           {
