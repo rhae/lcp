@@ -11,7 +11,8 @@
 typedef struct _mem_ctx
 {
   U8 mem[2* _MTU];
-  int idx;
+  int ri;
+  int wi;
 } mem_ctx_t;
 
 
@@ -26,13 +27,13 @@ U16 chan_mem_send(U8 b, void *priv)
   chan_t *me = (chan_t*)priv;
   mem_ctx_t* ctx = (mem_ctx_t*)me->priv;
 
-  if (ctx->idx == _MTU)
+  if (ctx->wi == _MTU)
   {
     return 0;
   }
 
-  ctx->mem[ctx->idx] = b;
-  ctx->idx++;
+  ctx->mem[ctx->wi] = b;
+  ctx->wi++;
 
   return 1;
 }
@@ -42,13 +43,13 @@ U16 chan_mem_recv(U8 *b, void *priv)
   chan_t *me = (chan_t*)priv;
   mem_ctx_t* ctx = (mem_ctx_t*)me->priv;
 
-  if (ctx->idx == 0)
+  if (ctx->ri == _MTU)
   {
     return 0;
   }
 
-  ctx->idx--;
-  *b = ctx->mem[ctx->idx];
+  *b = ctx->mem[ctx->ri];
+  ctx->ri++;
 
 
   return 1;
