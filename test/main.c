@@ -176,7 +176,7 @@ static void log1(void *priv, int level, S8 const *fmt, ...)
   }
 
   char l = fmt_level(level);
-  n = sprintf(Buf, "[ %s:%c ]", "CHAN1", l);
+  n = sprintf(Buf, "[ % 6d %s:%c ]", millis(), "CHAN1", l);
 
   va_start(args, fmt);
   vsnprintf(&Buf[n], sizeof(Buf)-n, fmt, args);
@@ -197,7 +197,7 @@ static void log2(void *priv, int level, S8 const *fmt, ...)
   }
 
   char l = fmt_level(level);
-  n = sprintf(Buf, "[ %s:%c ]", "CHAN2", l);
+  n = sprintf(Buf, "[ % 6d %s:%c ]", millis(), "CHAN2", l);
 
   va_start(args, fmt);
   vsnprintf(&Buf[n], sizeof(Buf)-n, fmt, args);
