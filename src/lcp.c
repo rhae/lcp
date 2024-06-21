@@ -82,8 +82,16 @@ void lcp_update( lcp_ctx_t *me )
         }
         else
         {
-          LOG_INFO("  Link ESTABLISHED");
+          if (!me->state.link_state)
+          {
+            LOG_INFO("  Link ESTABLISHED");
+          }
+          else
+          {
+            LOG_INFO("  Link active");
+          }
           me->state.state = LCP_LINK;
+          me->state.link_state = 1;
         }
       }
       else

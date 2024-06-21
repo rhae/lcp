@@ -48,6 +48,7 @@ typedef struct lcp_config
 typedef struct lcp_state
 {
   U8  state;
+  U8  link_state;
   U32 last_recv;
   U32 last_probe;
   U32 probe_cnt;
