@@ -3,7 +3,7 @@
 #include "chan_mem.h"
 #include "chan.h"
 
-#include "../include/lcp.h"
+#include <lcp/lcp.h>
 #include <stdlib.h>  /* calloc */
 
 #define _MTU (LCP_MTU +32)
