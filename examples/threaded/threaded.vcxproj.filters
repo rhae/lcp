@@ -18,10 +18,10 @@
     <ClCompile Include="main.c">
       <Filter>Quelldateien</Filter>
     </ClCompile>
-    <ClCompile Include="..\examples\common\chan.c">
+    <ClCompile Include="..\common\chan.c">
       <Filter>Quelldateien</Filter>
     </ClCompile>
-    <ClCompile Include="..\examples\common\chan_mem.c">
+    <ClCompile Include="..\common\chan_mem.c">
       <Filter>Quelldateien</Filter>
     </ClCompile>
   </ItemGroup>

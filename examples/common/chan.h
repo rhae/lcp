@@ -1,7 +1,7 @@
 
 #pragma once
 
-#include "../src/lcp_types.h"
+#include <lcp/lcp.h>
 
 typedef struct _chan
 {

@@ -1,7 +1,7 @@
 
 #pragma once
 
-#include "lcp_types.h"
+#include <lcp/lcp_types.h>
 
 U16 crc_init();
 U16 crc_calc_byte(U8, U16);

@@ -2,7 +2,7 @@
 #include "lcp_priv.h"
 
 #include "crc.h"
-#include "queue.h"
+#include <lcp/queue.h>
 
 #include <string.h>   /* memcp */
 #include <stdlib.h>   /* calloc */
@@ -30,13 +30,13 @@ static int handle_rxtx(lcp_ctx_t*);
 static int send(lcp_ctx_t*, U8 const* pkt, U16 size);
 static int recv(lcp_ctx_t*, U8* data, U16 size);
 
-#define LOG_ERROR( ...)  do { if( me->cfg->log) me->cfg->log( me->cfg, LOGLEVEL_ERROR, __VA_ARGS__ );} while(0)
-#define LOG_WARN( ...)  do { if( me->cfg->log) me->cfg->log( me->cfg, LOGLEVEL_WARN, __VA_ARGS__ );} while(0)
-#define LOG_INFO( ...)  do { if( me->cfg->log) me->cfg->log( me->cfg, LOGLEVEL_INFO, __VA_ARGS__ );} while(0)
-#define LOG_TEST( ...)  do { if( me->cfg->log) me->cfg->log( me->cfg, LOGLEVEL_TEST, __VA_ARGS__ );} while(0)
-#define LOG_VERBOSE( ...)  do { if( me->cfg->log) me->cfg->log( me->cfg, LOGLEVEL_VERBOSE, __VA_ARGS__ );} while(0)
-#define LOG_DEBUG( ...)  do { if( me->cfg->log) me->cfg->log( me->cfg, LOGLEVEL_DEBUG, __VA_ARGS__ );} while(0)
-#define LOG_TRACE( ...)  do { if( me->cfg->log) me->cfg->log( me->cfg, LOGLEVEL_TRACE, __VA_ARGS__ );} while(0)
+#define LOG_ERROR( ...)  do { if( me->cfg->log) me->cfg->log( (void*)me->cfg, LOGLEVEL_ERROR, __VA_ARGS__ );} while(0)
+#define LOG_WARN( ...)  do { if( me->cfg->log) me->cfg->log( (void*)me->cfg, LOGLEVEL_WARN, __VA_ARGS__ );} while(0)
+#define LOG_INFO( ...)  do { if( me->cfg->log) me->cfg->log( (void*)me->cfg, LOGLEVEL_INFO, __VA_ARGS__ );} while(0)
+#define LOG_TEST( ...)  do { if( me->cfg->log) me->cfg->log( (void*)me->cfg, LOGLEVEL_TEST, __VA_ARGS__ );} while(0)
+#define LOG_VERBOSE( ...)  do { if( me->cfg->log) me->cfg->log( (void*)me->cfg, LOGLEVEL_VERBOSE, __VA_ARGS__ );} while(0)
+#define LOG_DEBUG( ...)  do { if( me->cfg->log) me->cfg->log( (void*)me->cfg, LOGLEVEL_DEBUG, __VA_ARGS__ );} while(0)
+#define LOG_TRACE( ...)  do { if( me->cfg->log) me->cfg->log( (void*) me->cfg, LOGLEVEL_TRACE, __VA_ARGS__ );} while(0)
 
 void lcp_init( lcp_ctx_t *me, lcp_config_t const *cfg )
 {

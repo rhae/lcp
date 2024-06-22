@@ -1,5 +1,5 @@
 
-#include "queue.h"
+#include <lcp/queue.h>
 
 #include <string.h>   // memcpy
 
