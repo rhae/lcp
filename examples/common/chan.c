@@ -3,14 +3,17 @@
 #include "chan.h"
 #include "chan_mem.h"
 
+#include <assert.h>
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
 
 chan_t* chan_create(S8 const* chan_uri)
 {
-
   chan_t* chan = NULL;
+
+  assert(chan_uri != NULL);
+
   int ret = strncmp("mem:", chan_uri, 4);
 
   if (ret == 0)

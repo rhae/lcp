@@ -7,15 +7,40 @@
 
 #include <stdio.h>
 
-static U32 millis(void);
 
 lcp_ctx_t rcvr;
 lcp_ctx_t sndr;
 lcp_config_t sndr_cfg;
 lcp_config_t rcvr_cfg;
 
+typedef struct _var
+{
+  S8 const* SCPI;
+  S32 type;
+  union {
+    struct {
+      F64 value;
+      F64 min;
+      F64 max;
+      U32 prec;
+      U32 flags;
+    } f64;
+    struct {
+      S32 value;
+      S32 min;
+      S32 max;
+      U32 flags;
+    } s32;
+  } data;
+} var_t;
+
+static U32 millis(void);
 static void log1(void*, int, S8 const*, ...);
 static void log2(void*, int, S8 const*, ...);
+
+static var_t* create_var(S8 const *, S32 );
+static var_t* create_var_f64(S8 const *, S32, F64, F64, F64, S32, U32 );
+static var_t* create_var_s32(S8 const*, S32, S32, S32, S32, U32);
 
 int main(int argc, char** argv)
 {
@@ -130,4 +155,47 @@ static void log2(void* priv, int level, S8 const* fmt, ...)
   va_end(args);
 
   log(Buf);
+}
+
+static var_t* create_var(S8 const* SCPI, S32 type)
+{
+  var_t* var = (var_t*)calloc(sizeof(var_t), 1);
+
+  if (var)
+  {
+    var->SCPI = SCPI;
+    var->type = type;
+    memset(&var->data, 0, sizeof(var->data));
+  }
+  return var;
+}
+
+static var_t* create_var_f64(S8 const *SCPI, S32 type, F64 defaultValue, F64 minValue, F64 maxValue, S32 prec, U32 flags)
+{
+  var_t* var = create_var(SCPI, type);
+
+  if (var)
+  {
+    var->data.f64.value = defaultValue;
+    var->data.f64.min = minValue;
+    var->data.f64.max = maxValue;
+    var->data.f64.prec = prec;
+    var->data.f64.flags = flags;
+  }
+  return var;
+}
+
+static var_t* create_var_s32(S8 const *SCPI, S32 type, S32 defaultValue, S32 minValue, S32 maxValue, U32 flags)
+{
+  var_t* var = create_var(SCPI, type);
+
+  if (var)
+  {
+    var->data.s32.value = defaultValue;
+    var->data.s32.min = minValue;
+    var->data.s32.max = maxValue;
+    var->data.s32.flags = flags;
+  }
+  return var;
+
 }
