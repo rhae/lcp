@@ -24,5 +24,8 @@
     <ClCompile Include="..\common\chan_mem.c">
       <Filter>Quelldateien</Filter>
     </ClCompile>
+    <ClCompile Include="..\common\var.c">
+      <Filter>Quelldateien</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

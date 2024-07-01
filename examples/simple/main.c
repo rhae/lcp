@@ -1,6 +1,7 @@
 
 
 #include <common/chan.h>
+#include <common/var.h>
 
 #define WINDOWS_LEAN_AND_MEAN
 #include <windows.h>
@@ -13,34 +14,16 @@ lcp_ctx_t sndr;
 lcp_config_t sndr_cfg;
 lcp_config_t rcvr_cfg;
 
-typedef struct _var
-{
-  S8 const* SCPI;
-  S32 type;
-  union {
-    struct {
-      F64 value;
-      F64 min;
-      F64 max;
-      U32 prec;
-      U32 flags;
-    } f64;
-    struct {
-      S32 value;
-      S32 min;
-      S32 max;
-      U32 flags;
-    } s32;
-  } data;
-} var_t;
+var_t *rcvr_vars[5];
+var_t *sndr_vars[5];
+
 
 static U32 millis(void);
 static void log1(void*, int, S8 const*, ...);
 static void log2(void*, int, S8 const*, ...);
 
-static var_t* create_var(S8 const *, S32 );
-static var_t* create_var_f64(S8 const *, S32, F64, F64, F64, S32, U32 );
-static var_t* create_var_s32(S8 const*, S32, S32, S32, S32, U32);
+static void init_vars(var_t **, S32, S32);
+
 
 int main(int argc, char** argv)
 {
@@ -64,6 +47,9 @@ int main(int argc, char** argv)
   rcvr_cfg.millis = millis;
   rcvr_cfg.priv = chan2;
   rcvr_cfg.log = log2;
+
+  init_vars(rcvr_vars, countof(rcvr_vars), 1);
+  init_vars(sndr_vars, countof(sndr_vars), 0);
 
   lcp_init(&rcvr, &rcvr_cfg);
   lcp_init(&sndr, &sndr_cfg);
@@ -157,45 +143,34 @@ static void log2(void* priv, int level, S8 const* fmt, ...)
   log(Buf);
 }
 
-static var_t* create_var(S8 const* SCPI, S32 type)
+static void init_vars(var_t **vars, S32 var_cnt, S32 rcvr)
 {
-  var_t* var = (var_t*)calloc(sizeof(var_t), 1);
+  U8 buf[512];
 
-  if (var)
+  var_t* xvar = var_create_str("", 0, "");
+
+  if (rcvr)
   {
-    var->SCPI = SCPI;
-    var->type = type;
-    memset(&var->data, 0, sizeof(var->data));
+    vars[0] = var_create_str("IDN", 0, "Receiver V1.0" );
+    vars[1] = var_create_str("SER", 0, "A4345g" );
+
   }
-  return var;
-}
-
-static var_t* create_var_f64(S8 const *SCPI, S32 type, F64 defaultValue, F64 minValue, F64 maxValue, S32 prec, U32 flags)
-{
-  var_t* var = create_var(SCPI, type);
-
-  if (var)
+  else
   {
-    var->data.f64.value = defaultValue;
-    var->data.f64.min = minValue;
-    var->data.f64.max = maxValue;
-    var->data.f64.prec = prec;
-    var->data.f64.flags = flags;
+    vars[0] = var_create_str("IDN", 0, "Sender V1.0" );
+    vars[1] = var_create_str("SER", 0, "GEZHUD4" );
   }
-  return var;
-}
 
-static var_t* create_var_s32(S8 const *SCPI, S32 type, S32 defaultValue, S32 minValue, S32 maxValue, U32 flags)
-{
-  var_t* var = create_var(SCPI, type);
+  vars[2] = var_create_str("VER", 0, "1.0" );
+  vars[3] = var_create_f64("TMP", 0, 20.1, 0, 0, 2 );
+  vars[4] = var_create_f64("VEL", 0, 1623.3, 0, 0, 2 );
 
-  if (var)
-  {
-    var->data.s32.value = defaultValue;
-    var->data.s32.min = minValue;
-    var->data.s32.max = maxValue;
-    var->data.s32.flags = flags;
-  }
-  return var;
+#ifdef TEST_SERIALIZE
+  S32 len;
+  len = var_serialize(buf, 512, vars[2], false);
+  var_deserialize(xvar, buf, len);
+
+  memcmp(&vars[2], xvar, 32 );
+#endif
 
 }

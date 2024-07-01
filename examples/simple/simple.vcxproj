@@ -149,6 +149,7 @@
   <ItemGroup>
     <ClCompile Include="..\common\chan.c" />
     <ClCompile Include="..\common\chan_mem.c" />
+    <ClCompile Include="..\common\var.c" />
     <ClCompile Include="main.c" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
