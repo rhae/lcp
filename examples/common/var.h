@@ -51,7 +51,7 @@ var_t* var_create_s32(S8 const*, U32, S32, S32, S32);
 var_t* var_create_str(S8 const*, U32, S8 const*);
 
 
-S32 var_serialize(U8*, S32, var_t const*, bool);
-S32 var_deserialize(var_t *, U8 const*, S32);
+S32 var_pack(U8*, S32, var_t const*, bool);
+S32 var_unpack(var_t *, U8 const*, S32);
 S32 var_cmp(var_t const *, var_t const *);
 

@@ -111,7 +111,7 @@ union _conv_ {
   U8  bytes[8];
 };
 
-S32 var_serialize(U8* Buf, S32 BufSize, var_t const *var, bool with_descr)
+S32 var_pack(U8* Buf, S32 BufSize, var_t const *var, bool with_descr)
 {
   assert(Buf);
   assert(BufSize > 0);
@@ -171,7 +171,7 @@ S32 var_serialize(U8* Buf, S32 BufSize, var_t const *var, bool with_descr)
   return B->ptr - Buf;
 }
 
-S32 var_deserialize( var_t *var, U8 const* Buf, S32 BufSize )
+S32 var_unpack( var_t *var, U8 const* Buf, S32 BufSize )
 {
   assert(Buf);
   assert(BufSize > 0);

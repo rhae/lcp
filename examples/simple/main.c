@@ -165,11 +165,11 @@ static void init_vars(var_t **vars, S32 var_cnt, S32 rcvr)
   vars[3] = var_create_f64("TMP", 0, 20.1, 0, 0, 2 );
   vars[4] = var_create_f64("VEL", 0, 1623.3, 0, 0, 2 );
 
-#define TEST_SERIALIZE
+#define _TEST_SERIALIZE
 #ifdef TEST_SERIALIZE
   S32 len;
-  len = var_serialize(buf, 512, vars[2], false);
-  var_deserialize(xvar, buf, len);
+  len = var_pack(buf, 512, vars[2], false);
+  var_unpack(xvar, buf, len);
 
   // sprintf(xvar->data.str.value, "%s", "2.00");
   int ret = var_cmp(xvar, vars[2]);
