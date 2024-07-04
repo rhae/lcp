@@ -5,6 +5,7 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 
 
 var_t* var_create(S8 const* SCPI, S32 type, U32 flags)
@@ -117,7 +118,7 @@ S32 var_serialize(U8* Buf, S32 BufSize, var_t const *var, bool with_descr)
   assert(var);
 
   IOBuf __B, *B;
-  U8 type = var->type;
+  U8 type = (U8)var->type;
   S32 len = strlen(var->SCPI);
 
   if (with_descr) {
@@ -221,4 +222,44 @@ S32 var_deserialize( var_t *var, U8 const* Buf, S32 BufSize )
   }
 
   return B->ptr - Buf;
+}
+
+static inline int dblcmp(F64 a, F64 b, F64 limit)
+{
+  F64 diff = a - b;
+  if (fabs(diff) > limit)
+  {
+    return diff < 0 ? -1 : 1;
+  }
+  return 0;
+}
+
+int var_cmp(var_t const* v1, var_t const* v2)
+{
+#define CHECK( x ) do { int ret = x; if( ret != 0) {return ret;}} while(0)
+
+  CHECK((v1->type - v2->type));
+  CHECK(strcmp(v1->SCPI, v2->SCPI));
+
+  switch (v1->type)
+  {
+    case TYPE_INT:
+      CHECK((v1->data.s32.value - v2->data.s32.value));
+      CHECK((v1->data.s32.min- v2->data.s32.min));
+      CHECK((v1->data.s32.max- v2->data.s32.max));
+      break;
+
+    case TYPE_DOUBLE:
+      CHECK(dblcmp(v1->data.f64.value, v2->data.f64.value, .001 ));
+      CHECK(dblcmp(v1->data.f64.min, v2->data.f64.min, .001 ));
+      CHECK(dblcmp(v1->data.f64.max, v2->data.f64.max, .001 ));
+      CHECK((v1->data.f64.prec - v2->data.f64.prec));
+      break;
+
+    case TYPE_STRING:
+      CHECK(strcmp(v1->data.str.value, v2->data.str.value));
+      break;
+  }
+
+  return 0;
 }

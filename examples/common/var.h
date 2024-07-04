@@ -23,24 +23,24 @@ typedef struct _var
   U32 flags;
   union {
     struct {
+      S32 value;
       S32 min;
       S32 max;
-      S32 value;
     } s32;
     struct {
+      F64 value;
       F64 min;
       F64 max;
       U32 prec;
-      F64 value;
     } f64;
     struct {
       S8 value[STRBUF_LEN];
     } str;
     struct {
+      void *src;
       F64 min;
       F64 max;
       F64 prec;
-      void *src;
     } alias;
   } data;
 } var_t;
@@ -53,3 +53,5 @@ var_t* var_create_str(S8 const*, U32, S8 const*);
 
 S32 var_serialize(U8*, S32, var_t const*, bool);
 S32 var_deserialize(var_t *, U8 const*, S32);
+S32 var_cmp(var_t const *, var_t const *);
+
