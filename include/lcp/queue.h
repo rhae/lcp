@@ -18,7 +18,7 @@ typedef struct queue
 void queue_init(queue_t*, U8*, U16);
 void queue_flush(queue_t*);
 
-int queue_push( queue_t*, void*);
+int queue_push( queue_t*, void const *);
 int queue_pop( queue_t*, void **);
 U16 queue_count( queue_t const*);
 bool queue_empty(queue_t const*);

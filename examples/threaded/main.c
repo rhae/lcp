@@ -158,7 +158,7 @@ static void log(S8 const* buf)
 
 static char fmt_level(int level)
 {
-  static const s_levels[10] = { ' ', 't', 'D', 'V', 'T', 'I', 'W', 'E' };
+  static const char s_levels[10] = { ' ', 't', 'D', 'V', 'T', 'I', 'W', 'E' };
   int n = level / 10;
   return s_levels[n];
 }

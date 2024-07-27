@@ -20,8 +20,9 @@ void queue_init(queue_t *q, U8* mem, U16 cap)
   q->head = 0;
   q->tail = 0;
   q->capacity = cap;
-  q->elem_size = (U16) ((U8*)A[1] - (U8*)A[0]);
+  q->elem_size = (U16) ((U8*)&A[1] - (U8*)&A[0]);
   q->count = 0;
+  memset(q->mem, 0, q->capacity * q->elem_size);
 }
 
 void queue_flush(queue_t *q)
@@ -50,8 +51,11 @@ int queue_pop(queue_t*q, void **e)
   {
     return -1;
   }
+  void* p = q->mem + (q->tail * q->elem_size);
 
-  memcpy( *e, &q->mem[q->tail * q->elem_size], q->elem_size);
+  //memcpy( e, &q->mem[q->tail * q->elem_size], q->elem_size);
+  //memcpy( e, p, q->elem_size);
+  *e = p;
   q->tail = incr(q->tail, 1, q->capacity);
   q->count--;
   return 0;

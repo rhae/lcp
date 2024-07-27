@@ -54,15 +54,15 @@ typedef struct lcp_state
   U32 probe_cnt;
 
   U8       tx_state;
-  queue_t* qsend;
-  queue_t* qrecv;
+  queue_t qsend;
+  queue_t qrecv;
 } lcp_state_t;
 
 typedef struct lcp_ctx
 {
   lcp_config_t const* cfg;
   lcp_state_t   state;
-  U8*           buf;
+  U8            buf[6 * 128];
 } lcp_ctx_t;
 
 void lcp_init( lcp_ctx_t *me, lcp_config_t const * );

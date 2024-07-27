@@ -1,5 +1,5 @@
 
-#include "lcp_priv.h"
+#include "lcp/lcp_priv.h"
 
 #include "crc.h"
 #include <lcp/queue.h>
@@ -12,7 +12,18 @@
 #define COMM_TIMEOUT 1000
 #define MAX_PROBE_FAILS 5
 
+#define QELEMS 10
+
 #define _MTU ((LCP_MTU) + 8)
+
+struct _buf {
+  U8 rx[_MTU];
+  U8 tx[_MTU];
+  U32 gap1;
+  void *qrx[QELEMS];
+  U32 gap2;
+  void *qtx[QELEMS];
+};
 
 #ifndef LO_BYTE
 # define LO_BYTE( x ) ((x) & 0xFF)
@@ -22,7 +33,7 @@
 # define HI_BYTE( x ) (((x) >> 8) & 0xFF)
 #endif
 
-enum {SEND = 1, WAIT_ACK, RECV };
+enum { IDLE = 0, SEND = 1, WAIT_ACK, RECV };
 
 static int send_probe(lcp_ctx_t*, int mirror );
 static int recv_probe(lcp_ctx_t*);
@@ -40,10 +51,23 @@ static int recv(lcp_ctx_t*, U8* data, U16 size);
 
 void lcp_init( lcp_ctx_t *me, lcp_config_t const *cfg )
 {
+  U16 qcap = QELEMS;
+  int qsize = sizeof(void*) * qcap;
+  int bsize = sizeof(struct _buf);
+  struct _buf* b;
+
   me->cfg = cfg;
   memset(&me->state, 0, sizeof(lcp_state_t));
   me->state.state = LCP_NOLINK;
-  me->buf = calloc(_MTU * 2, 1);
+  b = (struct _buf*)me->buf;
+  
+  if (me->buf)
+  {
+    memset(me->buf, 'S', bsize);
+
+    queue_init(&me->state.qrecv, (U8*) b->qrx, qcap);
+    queue_init(&me->state.qsend, (U8*) b->qtx, qcap);
+  }
 
   LOG_TRACE("init done. ");
 }
@@ -138,6 +162,8 @@ void lcp_update( lcp_ctx_t *me )
 
 int lcp_write(lcp_ctx_t *me, U8 const* buf, U16 size)
 {
+  queue_push(&me->state.qsend, (const void*) buf);
+  me->state.tx_state = SEND;
   return 0;
 }
 
@@ -245,7 +271,7 @@ static int fill_data(U8* pkt, U8 const* data, U16 size)
   _FILL( HI_BYTE(crc));
 
 
-  return pkt - p;
+  return p - pkt;
 }
 
 static int send(lcp_ctx_t *me, U8 const* pkt, U16 size)
@@ -341,26 +367,41 @@ static int handle_rxtx(lcp_ctx_t *me)
 {
   U16 cnt;
   int state = me->state.tx_state;
+  int now = me->cfg->millis();
 
   LOG_TRACE("> handle_rxtx");
   switch (me->state.tx_state)
   {
     case SEND:
-      cnt = queue_count(me->state.qsend);
+      cnt = queue_count(&me->state.qsend);
       if ( cnt > 0 )
       {
-        U8* data;
-        queue_pop(me->state.qsend, &data);
-        fill_data(me->buf, data, LCP_MTU);
+        U8* data = 0;
+        queue_pop(&me->state.qsend, (void **)&data);
+        if (data)
+        {
+          int len = fill_data(me->buf, data, LCP_MTU);
+          send(me, me->buf, (U16)len);
+
+          me->state.tx_state = WAIT_ACK;
+          me->state.last_recv = now;
+        }
       }
       break;
 
     case WAIT_ACK:
-      break;
-
-    case RECV:
+      if (now - me->state.last_recv > 1000)
+      {
+        LOG_ERROR("timeout");
+        me->state.tx_state = IDLE;
+        me->state.last_recv = 0;
+      }
       break;
   }
+
+  // recv(me, &me->buf[_MTU + 4], _MTU);
+
+
   if (state != me->state.tx_state)
   {
     LOG_DEBUG("tx_state: %d -> %d", state, me->state.tx_state );

@@ -8,6 +8,10 @@
 
 #include <stdio.h>
 
+#ifndef UNUSED_PARAM
+# define UNUSED_PARAM(x) (void)(x)
+#endif
+
 
 lcp_ctx_t rcvr;
 lcp_ctx_t sndr;
@@ -58,6 +62,14 @@ int main(int argc, char** argv)
   {
     lcp_update(&sndr);
     lcp_update(&rcvr);
+    if (i == 13)
+    {
+      U8 buf[256];
+      S32 len;
+
+      len = var_pack(buf, sizeof(buf), sndr_vars[0], false);
+      lcp_write(&sndr, buf, (U16)len);
+    }
 
   }
 
@@ -107,6 +119,8 @@ static void log1(void* priv, int level, S8 const* fmt, ...)
   int n;
   va_list args;
 
+  UNUSED_PARAM(priv);
+
   if (level < s_LogLevel)
   {
     return;
@@ -128,6 +142,8 @@ static void log2(void* priv, int level, S8 const* fmt, ...)
   int n;
   va_list args;
 
+  UNUSED_PARAM(priv);
+
   if (level < s_LogLevel)
   {
     return;
@@ -143,13 +159,15 @@ static void log2(void* priv, int level, S8 const* fmt, ...)
   log(Buf);
 }
 
-static void init_vars(var_t **vars, S32 var_cnt, S32 rcvr)
+static void init_vars(var_t **vars, S32 var_cnt, S32 dir)
 {
   U8 buf[512];
 
+  UNUSED_PARAM(var_cnt);
+
   var_t* xvar = var_create_str("", 0, "");
 
-  if (rcvr)
+  if (dir)
   {
     vars[0] = var_create_str("IDN", 0, "Receiver V1.0" );
     vars[1] = var_create_str("SER", 0, "A4345g" );
